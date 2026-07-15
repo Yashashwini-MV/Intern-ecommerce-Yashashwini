@@ -8,25 +8,24 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String     @unique
   password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  wishlist  Wishlist[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  address   Address?
   cart      Cart[]
   orders    Order[]
-  address   Address?
+  wishlist  Wishlist[]
 }
 
 model Wishlist {
   id        Int      @id @default(autoincrement())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
   productId Int
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, productId])
 }
@@ -34,10 +33,10 @@ model Wishlist {
 model Cart {
   id        Int      @id @default(autoincrement())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
   productId Int
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, productId])
 }
@@ -45,26 +44,25 @@ model Cart {
 model Order {
   id          Int         @id @default(autoincrement())
   userId      Int
-  user        User        @relation(fields: [userId], references: [id])
   totalAmount Float
   status      String
   orderDate   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id])
   orderItems  OrderItem[]
 }
 
 model OrderItem {
   id        Int   @id @default(autoincrement())
   orderId   Int
-  order     Order @relation(fields: [orderId], references: [id])
   productId Int
   quantity  Int   @default(1)
   price     Float
+  order     Order @relation(fields: [orderId], references: [id])
 }
 
 model Address {
   id       Int    @id @default(autoincrement())
   userId   Int    @unique
-  user     User   @relation(fields: [userId], references: [id])
   fullName String
   phone    String
   street   String
@@ -72,4 +70,5 @@ model Address {
   state    String
   pinCode  String
   country  String
+  user     User   @relation(fields: [userId], references: [id])
 }

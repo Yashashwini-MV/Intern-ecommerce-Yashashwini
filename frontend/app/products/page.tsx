@@ -86,8 +86,41 @@ export default function ProductsPage() {
     }
   };
 
+  const addToCart = async (productId: number) => {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    alert("Please login first.");
+    return;
+  }
+
+  try {
+    const response = await fetch("http://localhost:3000/cart", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        productId,
+        quantity: 1,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.message || "Failed to add to cart.");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Cannot connect to backend.");
+  }
+};
+
   return (
     <main className="min-h-screen bg-gray-100 p-8">
+       <div className="flex justify-end gap-4 mb-6">
 
       <div className="flex justify-end mb-6">
         <a
@@ -97,6 +130,21 @@ export default function ProductsPage() {
           ❤️ View Wishlist
         </a>
       </div>
+      <a
+        href="/cart"
+        className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
+      >
+        🛒 View Cart
+      </a>
+    </div>
+
+    <h1 className="text-4xl font-bold text-center mb-10">
+      Products
+    </h1>
+
+    <div className="grid grid-cols-4 gap-6">
+      {/* products.map() */}
+    </div>
 
       <h1 className="text-4xl font-bold text-center mb-10">
         Products
@@ -136,9 +184,12 @@ export default function ProductsPage() {
                 : "❤️ Wishlist"}
             </button>
 
-            <button className="w-full bg-blue-600 text-white py-2 rounded-lg mt-3 hover:bg-blue-700">
-              🛒 Add to Cart
-            </button>
+            <button
+  onClick={() => addToCart(product.id)}
+  className="w-full bg-blue-600 text-white py-2 rounded-lg mt-3 hover:bg-blue-700"
+>
+  🛒 Add to Cart
+</button>
           </div>
         ))}
       </div>
