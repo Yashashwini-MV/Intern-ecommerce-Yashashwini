@@ -1,197 +1,149 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface Product {
-  id: number;
-  title: string;
-  price: number;
-  thumbnail: string;
-}
+import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import type { Product } from "@/types";
+import { apiGet, apiPost } from "@/lib/api";
+import { useRequireAuth } from "@/lib/hooks";
+import ProductCard from "@/app/components/ProductCard";
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+  const { checkAuth } = useRequireAuth();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [wishlisted, setWishlisted] = useState<number[]>([]);
-
-  // Fetch all products
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch("http://localhost:3000/products");
-      const data = await response.json();
-      setProducts(data.products);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Fetch wishlist from backend
-  const fetchWishlist = async () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) return;
-
-    try {
-      const response = await fetch("http://localhost:3000/wishlist", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        // Store only product IDs
-        setWishlisted(data.map((item: Product) => item.id));
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProducts();
-    fetchWishlist();
+    const load = async () => {
+      try {
+        const data = await apiGet<{ products: Product[] }>("/products");
+        setProducts(data.products);
+      } catch {
+        console.error("Failed to load products");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const loadWishlist = async () => {
+      try {
+        const data = await apiGet<Product[]>("/wishlist", true);
+        setWishlisted(data.map((item) => item.id));
+      } catch {
+        // not logged in or error — silently ignore
+      }
+    };
+
+    load();
+    loadWishlist();
   }, []);
 
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) return products;
+    const q = searchQuery.toLowerCase();
+    return products.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q)
+    );
+  }, [products, searchQuery]);
+
   const addToWishlist = async (productId: number) => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login first.");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:3000/wishlist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          productId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
+    if (!checkAuth()) return;
+      try {
+        await apiPost<{ message: string }>("/wishlist", { productId });
         setWishlisted((prev) => [...prev, productId]);
-      } else {
-        alert(data.message);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Cannot connect to backend.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add to wishlist");
     }
   };
 
   const addToCart = async (productId: number) => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    alert("Please login first.");
-    return;
-  }
-
-  try {
-    const response = await fetch("http://localhost:3000/cart", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        productId,
-        quantity: 1,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(data.message || "Failed to add to cart.");
+    if (!checkAuth()) return;
+    try {
+      await apiPost("/cart", { productId, quantity: 1 });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add to cart");
     }
-  } catch (error) {
-    console.error(error);
-    alert("Cannot connect to backend.");
-  }
-};
+  };
 
   return (
-    <main className="min-h-screen bg-gray-100 p-8">
-       <div className="flex justify-end gap-4 mb-6">
-
-      <div className="flex justify-end mb-6">
-        <a
-          href="/wishlist"
-          className="bg-pink-500 text-white px-5 py-2 rounded-lg hover:bg-pink-600"
-        >
-          ❤️ View Wishlist
-        </a>
-      </div>
-      <a
-        href="/cart"
-        className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
-      >
-        🛒 View Cart
-      </a>
-    </div>
-
-    <h1 className="text-4xl font-bold text-center mb-10">
-      Products
-    </h1>
-
-    <div className="grid grid-cols-4 gap-6">
-      {/* products.map() */}
-    </div>
-
-      <h1 className="text-4xl font-bold text-center mb-10">
-        Products
-      </h1>
-
-      <div className="grid grid-cols-4 gap-6">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white rounded-xl shadow-md p-4"
-          >
-            <img
-              src={product.thumbnail}
-              alt={product.title}
-              className="w-full h-52 object-cover rounded-lg"
-            />
-
-            <h2 className="text-lg font-semibold mt-4">
-              {product.title}
-            </h2>
-
-            <p className="text-green-600 font-bold mt-2">
-              ₹ {product.price}
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
+            {searchQuery ? (
+              <>
+                Results for &quot;<span className="text-indigo-600">{searchQuery}</span>&quot;
+              </>
+            ) : (
+              "All Products"
+            )}
+          </h1>
+          {!loading && (
+            <p className="mt-2 text-gray-500 text-sm">
+              {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} found
             </p>
+          )}
+        </div>
 
-            <button
-              onClick={() => addToWishlist(product.id)}
-              disabled={wishlisted.includes(product.id)}
-              className={`w-full py-2 rounded-lg mt-4 text-white ${
-                wishlisted.includes(product.id)
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-pink-500 hover:bg-pink-600"
-              }`}
-            >
-              {wishlisted.includes(product.id)
-                ? "❤️ Wishlisted"
-                : "❤️ Wishlist"}
-            </button>
-
-            <button
-  onClick={() => addToCart(product.id)}
-  className="w-full bg-blue-600 text-white py-2 rounded-lg mt-3 hover:bg-blue-700"
->
-  🛒 Add to Cart
-</button>
+        {/* Loading State */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl shadow-sm overflow-hidden animate-pulse"
+              >
+                <div className="h-52 bg-gray-200" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-4 bg-gray-200 rounded w-1/2" />
+                  <div className="h-8 bg-gray-200 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-20">
+            <svg
+              className="mx-auto h-16 w-16 text-gray-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <h3 className="mt-4 text-lg font-semibold text-gray-700">
+              No products found
+            </h3>
+            <p className="mt-1 text-gray-500">
+              Try a different search term.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                isWishlisted={wishlisted.includes(product.id)}
+                onAddToWishlist={addToWishlist}
+                onAddToCart={addToCart}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );

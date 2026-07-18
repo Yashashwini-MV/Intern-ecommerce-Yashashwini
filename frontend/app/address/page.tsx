@@ -2,167 +2,192 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiGet, apiPost } from "@/lib/api";
+
+interface AddressForm {
+  fullName: string;
+  phone: string;
+  street: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country: string;
+}
+
+const EMPTY_FORM: AddressForm = {
+  fullName: "",
+  phone: "",
+  street: "",
+  city: "",
+  state: "",
+  pinCode: "",
+  country: "",
+};
 
 export default function AddressPage() {
   const router = useRouter();
-
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [street, setStreet] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [pinCode, setPinCode] = useState("");
-  const [country, setCountry] = useState("");
+  const [form, setForm] = useState<AddressForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const data = await apiGet<AddressForm>("/address", true);
+        setForm(data);
+      } catch {
+        // no saved address yet
+      } finally {
+        setFetching(false);
+      }
+    };
     fetchAddress();
   }, []);
 
-  const fetchAddress = async () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) return;
-
-    try {
-      const response = await fetch("http://localhost:3000/address", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        setFullName(data.fullName);
-        setPhone(data.phone);
-        setStreet(data.street);
-        setCity(data.city);
-        setState(data.state);
-        setPinCode(data.pinCode);
-        setCountry(data.country);
-      }
-    } catch (error) {
-      console.error(error);
-    }
+  const updateField = (field: keyof AddressForm, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const saveAddress = async () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login first.");
-      return;
-    }
-
     setLoading(true);
-
     try {
-      const response = await fetch("http://localhost:3000/address", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fullName,
-          phone,
-          street,
-          city,
-          state,
-          pinCode,
-          country,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("Address Saved Successfully!");
-        router.push("/orders");
-      } else {
-        alert(data.message || "Failed to save address.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Cannot connect to backend.");
+      await apiPost("/address", form);
+      alert("Address saved successfully!");
+      router.push("/orders");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save address.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="animate-pulse w-full max-w-md space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-48 mx-auto" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-12 bg-gray-200 rounded-xl" />
+          ))}
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-gray-100 flex justify-center items-center p-8">
-      <div className="bg-white shadow-xl rounded-xl p-8 w-[500px]">
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-gray-900">
+            Delivery Address
+          </h1>
+          <p className="text-gray-500 text-sm mt-2">
+            Where should we deliver your order?
+          </p>
+        </div>
 
-        <h1 className="text-4xl font-bold text-blue-600 text-center mb-8">
-          📍 Delivery Address
-        </h1>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              placeholder="John Doe"
+              value={form.fullName}
+              onChange={(e) => updateField("fullName", e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            />
+          </div>
 
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-gray-900"
-        />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              placeholder="+91 98765 43210"
+              value={form.phone}
+              onChange={(e) => updateField("phone", e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            />
+          </div>
 
-        <input
-          type="text"
-          placeholder="Phone Number"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-gray-900"
-        />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Street Address
+            </label>
+            <input
+              type="text"
+              placeholder="123 Main Street, Apt 4B"
+              value={form.street}
+              onChange={(e) => updateField("street", e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            />
+          </div>
 
-        <input
-          type="text"
-          placeholder="Street Address"
-          value={street}
-          onChange={(e) => setStreet(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-gray-900"
-        />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                City
+              </label>
+              <input
+                type="text"
+                placeholder="Mumbai"
+                value={form.city}
+                onChange={(e) => updateField("city", e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                State
+              </label>
+              <input
+                type="text"
+                placeholder="Maharashtra"
+                value={form.state}
+                onChange={(e) => updateField("state", e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
 
-        <input
-          type="text"
-          placeholder="City"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-gray-900"
-        />
-
-        <input
-          type="text"
-          placeholder="State"
-          value={state}
-          onChange={(e) => setState(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-gray-900"
-        />
-
-        <input
-          type="text"
-          placeholder="PIN Code"
-          value={pinCode}
-          onChange={(e) => setPinCode(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-gray-900"
-        />
-
-        <input
-          type="text"
-          placeholder="Country"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg p-3 mb-6 text-gray-900"
-        />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                PIN Code
+              </label>
+              <input
+                type="text"
+                placeholder="400001"
+                value={form.pinCode}
+                onChange={(e) => updateField("pinCode", e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Country
+              </label>
+              <input
+                type="text"
+                placeholder="India"
+                value={form.country}
+                onChange={(e) => updateField("country", e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
+        </div>
 
         <button
           onClick={saveAddress}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors mt-6"
         >
-          {loading ? "Saving..." : "Save Address"}
+          {loading ? "Saving..." : "Save & Continue"}
         </button>
-
       </div>
     </main>
   );
