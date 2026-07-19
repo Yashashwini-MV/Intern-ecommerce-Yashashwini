@@ -1,16 +1,18 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Product } from "@/types";
 import { apiGet, apiPost, getDiscountedPrice } from "@/lib/api";
-import { useRequireAuth } from "@/lib/hooks";
+import { useRequireAuth, useCartItems } from "@/lib/hooks";
 import StarRating from "@/app/components/StarRating";
 
 export default function ProductDetailsPage() {
   const { id } = useParams();
+  const router = useRouter();
   const { checkAuth } = useRequireAuth();
+  const cart = useCartItems();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,12 +69,16 @@ export default function ProductDetailsPage() {
     if (!checkAuth()) return;
     setCartLoading(true);
     try {
-      await apiPost("/cart", { productId: product?.id, quantity });
+      await cart.addToCart(product?.id!, quantity);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add to cart");
     } finally {
       setCartLoading(false);
     }
+  };
+
+  const handleGoToCart = () => {
+    router.push("/cart");
   };
 
   if (loading) {
@@ -129,6 +135,7 @@ export default function ProductDetailsPage() {
   }
 
   const discountedPrice = getDiscountedPrice(product.price, product.discountPercentage);
+  const inCart = cart.isInCart(product.id);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -315,12 +322,14 @@ export default function ProductDetailsPage() {
                 </button>
 
                 <button
-                  onClick={addToCart}
+                  onClick={inCart ? handleGoToCart : addToCart}
                   disabled={product.stock === 0 || cartLoading}
                   className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
                     product.stock === 0
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300"
+                      : inCart
+                        ? "bg-green-50 text-green-600 border border-green-200 hover:bg-green-600 hover:text-white hover:border-green-600"
+                        : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300"
                   } disabled:opacity-50`}
                 >
                   <svg
@@ -336,7 +345,7 @@ export default function ProductDetailsPage() {
                       d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"
                     />
                   </svg>
-                  {cartLoading ? "Adding..." : "Add to Cart"}
+                  {inCart ? "Go to Cart" : cartLoading ? "Adding..." : "Add to Cart"}
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Product } from "@/types";
 import { getDiscountedPrice } from "@/lib/api";
@@ -9,16 +10,19 @@ import StarRating from "./StarRating";
 interface ProductCardProps {
   product: Product;
   isWishlisted: boolean;
+  inCart: boolean;
   onAddToWishlist: (productId: number) => void;
-  onAddToCart: (productId: number) => void;
+  onAddToCart: (productId: number) => Promise<void>;
 }
 
 export default function ProductCard({
   product,
   isWishlisted,
+  inCart,
   onAddToWishlist,
   onAddToCart,
 }: ProductCardProps) {
+  const router = useRouter();
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const discountedPrice = getDiscountedPrice(product.price, product.discountPercentage);
@@ -35,10 +39,21 @@ export default function ProductCard({
   const handleCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (cartLoading) return;
+    if (cartLoading || inCart) return;
     setCartLoading(true);
-    onAddToCart(product.id);
-    setCartLoading(false);
+    try {
+      await onAddToCart(product.id);
+    } catch {
+      // Error already handled by parent
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleGoToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push("/cart");
   };
 
   return (
@@ -104,13 +119,22 @@ export default function ProductCard({
             >
               {isWishlisted ? "Wishlisted" : "Wishlist"}
             </button>
-            <button
-              onClick={handleCart}
-              disabled={cartLoading}
-              className="flex-1 py-2 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50"
-            >
-              {cartLoading ? "Adding..." : "Add to Cart"}
-            </button>
+            {inCart ? (
+              <button
+                onClick={handleGoToCart}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold bg-green-50 text-green-600 hover:bg-green-600 hover:text-white transition-all"
+              >
+                Go to Cart
+              </button>
+            ) : (
+              <button
+                onClick={handleCart}
+                disabled={cartLoading}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50"
+              >
+                {cartLoading ? "Adding..." : "Add to Cart"}
+              </button>
+            )}
           </div>
         </div>
       </div>

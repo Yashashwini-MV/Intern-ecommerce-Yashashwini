@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Product } from "@/types";
 import { apiGet, apiPost } from "@/lib/api";
-import { useRequireAuth } from "@/lib/hooks";
+import { useRequireAuth, useCartItems } from "@/lib/hooks";
 import ProductCard from "@/app/components/ProductCard";
 
 export default function ProductsPage() {
@@ -15,6 +15,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [wishlisted, setWishlisted] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const cart = useCartItems();
 
   useEffect(() => {
     const load = async () => {
@@ -65,7 +66,7 @@ export default function ProductsPage() {
   const addToCart = async (productId: number) => {
     if (!checkAuth()) return;
     try {
-      await apiPost("/cart", { productId, quantity: 1 });
+      await cart.addToCart(productId);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add to cart");
     }
@@ -138,6 +139,7 @@ export default function ProductsPage() {
                 key={product.id}
                 product={product}
                 isWishlisted={wishlisted.includes(product.id)}
+                inCart={cart.isInCart(product.id)}
                 onAddToWishlist={addToWishlist}
                 onAddToCart={addToCart}
               />

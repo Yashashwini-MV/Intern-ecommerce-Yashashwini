@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { isLoggedIn } from "@/lib/api";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { isLoggedIn, apiGet, apiPost } from "@/lib/api";
+import type { CartItem } from "@/types";
 
 export function useRequireAuth() {
   const checkAuth = useCallback(() => {
@@ -35,4 +36,44 @@ export function useLoadingState(initial = false) {
   }, []);
 
   return { loading, error, setError, withLoading };
+}
+
+export function useCartItems() {
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCart = useCallback(async () => {
+    try {
+      const data = await apiGet<CartItem[]>("/cart", true);
+      setCartItems(data);
+    } catch {
+      // Not logged in or error — silently ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  const addToCart = useCallback(
+    async (productId: number, quantity = 1) => {
+      await apiPost("/cart", { productId, quantity });
+      await fetchCart();
+    },
+    [fetchCart]
+  );
+
+  const cartProductIds = useMemo(
+    () => new Set(cartItems.map((item) => item.productId)),
+    [cartItems]
+  );
+
+  const isInCart = useCallback(
+    (productId: number) => cartProductIds.has(productId),
+    [cartProductIds]
+  );
+
+  return { cartItems, cartProductIds, loading, addToCart, isInCart, refreshCart: fetchCart };
 }
