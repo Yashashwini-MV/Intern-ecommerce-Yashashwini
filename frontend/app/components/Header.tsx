@@ -2,10 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import SearchBar from "./SearchBar";
 
 export default function Header() {
+  const router = useRouter();
+  const { authenticated, refreshAuth } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    refreshAuth();
+    setMobileOpen(false);
+    router.push("/");
+  };
 
   return (
     <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 shadow-lg sticky top-0 z-50">
@@ -59,18 +70,21 @@ export default function Header() {
               Cart
             </Link>
             <div className="w-px h-6 bg-white/30 mx-1" />
-            <Link
-              href="/login"
-              className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="bg-yellow-300 text-indigo-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-200 transition-colors"
-            >
-              Register
-            </Link>
+            {authenticated ? (
+              <button
+                onClick={handleLogout}
+                className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition-colors"
+              >
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -127,20 +141,22 @@ export default function Header() {
                 Cart
               </Link>
               <div className="h-px bg-white/20 my-2" />
-              <Link
-                href="/login"
-                onClick={() => setMobileOpen(false)}
-                className="bg-white text-indigo-600 px-4 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-indigo-50 transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setMobileOpen(false)}
-                className="bg-yellow-300 text-indigo-900 px-4 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-yellow-200 transition-colors"
-              >
-                Register
-              </Link>
+              {authenticated ? (
+                <button
+                  onClick={handleLogout}
+                  className="bg-white text-indigo-600 px-4 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-indigo-50 transition-colors"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="bg-white text-indigo-600 px-4 py-2.5 rounded-lg text-sm font-semibold text-center hover:bg-indigo-50 transition-colors"
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         )}

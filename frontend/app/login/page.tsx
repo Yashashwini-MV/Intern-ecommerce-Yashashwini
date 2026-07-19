@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiPost } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshAuth } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +26,7 @@ export default function LoginPage() {
         false
       );
       localStorage.setItem("token", data.accessToken);
+      refreshAuth();
       router.push("/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
