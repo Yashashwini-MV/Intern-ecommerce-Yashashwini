@@ -33,8 +33,9 @@ export default function AddressPage() {
   useEffect(() => {
     const fetchAddress = async () => {
       try {
-        const data = await apiGet<AddressForm>("/address", true);
-        setForm(data);
+        const data = await apiGet<Record<string, unknown>>("/address", true);
+        const { id, userId, ...addressFields } = data;
+        setForm(addressFields as AddressForm);
       } catch {
         // no saved address yet
       } finally {
@@ -51,7 +52,15 @@ export default function AddressPage() {
   const saveAddress = async () => {
     setLoading(true);
     try {
-      await apiPost("/address", form);
+      await apiPost("/address", {
+        fullName: form.fullName,
+        phone: form.phone,
+        street: form.street,
+        city: form.city,
+        state: form.state,
+        pinCode: form.pinCode,
+        country: form.country,
+      });
       alert("Address saved successfully!");
       router.push("/orders");
     } catch (err) {
