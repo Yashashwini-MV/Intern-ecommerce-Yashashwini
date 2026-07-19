@@ -11,6 +11,13 @@ export interface Product {
   images: string[];
 }
 
+export interface PaginatedProducts {
+  products: Product[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export interface CartItem {
   productId: number;
   title: string;
