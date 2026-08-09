@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { Product, PaginatedProducts } from "@/types";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth, useCartItems } from "@/lib/hooks";
+import { useSearchLoading } from "@/lib/search-context";
 import ProductCard from "@/app/components/ProductCard";
 
 const PAGE_SIZE = 10;
@@ -14,6 +15,7 @@ export default function ProductsPage() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("search") || "";
   const { checkAuth } = useRequireAuth();
+  const { setSearchLoading } = useSearchLoading();
   const productsTopRef = useRef<HTMLDivElement>(null);
   const prevSearchQuery = useRef(searchQuery);
 
@@ -32,7 +34,7 @@ export default function ProductsPage() {
   }, []);
 
   const fetchProducts = useCallback(
-    async (page: number, query: string) => {
+    async (page: number, query: string, signal?: AbortSignal) => {
       setPageLoading(true);
       try {
         const skip = (page - 1) * PAGE_SIZE;
@@ -40,22 +42,28 @@ export default function ProductsPage() {
         const url = query
           ? `${DUMMYJSON_API}/search?q=${encodeURIComponent(query)}&${params}`
           : `${DUMMYJSON_API}?${params}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { signal });
         if (!res.ok) throw new Error("Failed to fetch products");
         const data: PaginatedProducts = await res.json();
         setProducts(data.products);
         setTotalItems(data.total);
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
         console.error("Failed to load products");
       } finally {
         setPageLoading(false);
         setLoading(false);
+        setSearchLoading(false);
       }
     },
-    []
+    [setSearchLoading]
   );
 
   useEffect(() => {
+    const controller = new AbortController();
+
     if (searchQuery !== prevSearchQuery.current) {
       prevSearchQuery.current = searchQuery;
       if (currentPage !== 1) {
@@ -63,7 +71,9 @@ export default function ProductsPage() {
         return;
       }
     }
-    fetchProducts(currentPage, searchQuery);
+    fetchProducts(currentPage, searchQuery, controller.signal);
+
+    return () => controller.abort();
   }, [currentPage, searchQuery, fetchProducts]);
 
   useEffect(() => {
@@ -190,7 +200,7 @@ export default function ProductsPage() {
               No products found
             </h3>
             <p className="mt-1 text-gray-500">
-              Try a different search term.
+              Try searching with another keyword.
             </p>
           </div>
         ) : (
